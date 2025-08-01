@@ -1,0 +1,9 @@
+{
+  "ip": "192.168.1.254",
+  "target_ssid": "Redmi 9a",
+  "target_mac": "AA:BB:CC:DD:EE:FF",
+  "login_page_name": "login.html",
+  "total_send_pkt": 100,
+  "username": "admin",
+  "password": "password123"
+} 

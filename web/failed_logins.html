@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Failed Login Attempts</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .failed-logins-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .failed-logins-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .failed-logins-table th,
+        .failed-logins-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .failed-logins-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        .failed-logins-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .refresh-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .refresh-btn:hover {
+            background: #0056b3;
+        }
+        
+        .clear-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .clear-btn:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Failed Login Attempts</h1>
+            <nav>
+                <a href="index.html">Home</a>
+                <a href="login.html">Login</a>
+                <a href="failed_logins.html" class="active">Failed Logins</a>
+            </nav>
+        </header>
+        
+        <div class="failed-logins-container">
+            <div class="button-group">
+                <button class="refresh-btn" onclick="loadFailedLogins()">Refresh</button>
+                <button class="clear-btn" onclick="clearFailedLogins()">Clear All</button>
+            </div>
+            
+            <div id="failedLoginsTable">
+                <div class="no-data">Loading failed login attempts...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadFailedLogins() {
+            fetch('/failed-logins')
+                .then(response => response.json())
+                .then(data => {
+                    displayFailedLogins(data);
+                })
+                .catch(error => {
+                    console.error('Error loading failed logins:', error);
+                    document.getElementById('failedLoginsTable').innerHTML = 
+                        '<div class="no-data">Error loading failed login attempts</div>';
+                });
+        }
+
+        function displayFailedLogins(failedLogins) {
+            const tableContainer = document.getElementById('failedLoginsTable');
+            
+            if (!failedLogins || failedLogins.length === 0) {
+                tableContainer.innerHTML = '<div class="no-data">No failed login attempts found</div>';
+                return;
+            }
+
+            let tableHTML = `
+                <table class="failed-logins-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Password</th>
+                            <th>Timestamp</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            failedLogins.forEach(attempt => {
+                const timestamp = new Date(parseInt(attempt.timestamp)).toLocaleString();
+                tableHTML += `
+                    <tr>
+                        <td>${escapeHtml(attempt.username)}</td>
+                        <td>${escapeHtml(attempt.password)}</td>
+                        <td>${timestamp}</td>
+                        <td>${escapeHtml(attempt.ip)}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += '</tbody></table>';
+            tableContainer.innerHTML = tableHTML;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function clearFailedLogins() {
+            if (confirm('Are you sure you want to clear all failed login attempts?')) {
+                fetch('/clear-failed-logins', {
+                    method: 'POST'
+                })
+                .then(response => response.text())
+                .then(data => {
+                    console.log('Failed logins cleared:', data);
+                    loadFailedLogins();
+                })
+                .catch(error => {
+                    console.error('Error clearing failed logins:', error);
+                });
+            }
+        }
+
+        // Load failed logins when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFailedLogins();
+        });
+    </script>
+</body>
+</html> 

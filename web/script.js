@@ -1,11 +1,32 @@
+// Authentication check
+function checkAuth() {
+    if (localStorage.getItem('isLoggedIn') !== 'true') {
+        window.location.href = '/login.html';
+        return false;
+    }
+    return true;
+}
+
+// Logout function
+function logout() {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('loginTime');
+    window.location.href = '/login.html';
+}
+
 // Load current configuration on page load
 window.addEventListener('load', function() {
+    if (!checkAuth()) return;
     loadCurrentConfig();
+    
+    // Setup logout button
+    document.getElementById('logoutBtn').addEventListener('click', logout);
 });
 
 // Handle form submission
 document.getElementById('configForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    if (!checkAuth()) return;
     saveConfiguration();
 });
 

