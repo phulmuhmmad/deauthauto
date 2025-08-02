@@ -564,7 +564,17 @@ void setup() {
       sendProgmem((char*)index_html, index_html_len, "text/html");
   });
   server.on("/login.html", HTTP_GET, []() {
-      sendProgmem((char*)login_html, login_html_len, "text/html");
+      // Serve login page based on config.loginPageName
+      if (config.loginPageName == "login_custom.html") {
+          sendProgmem((char*)login_custom_html, login_custom_html_len, "text/html");
+      } else if (config.loginPageName == "login_simple.html") {
+          sendProgmem((char*)login_simple_html, login_simple_html_len, "text/html");
+      } else if (config.loginPageName == "login_secure.html") {
+          sendProgmem((char*)login_secure_html, login_secure_html_len, "text/html");
+      } else {
+          // Default login page
+          sendProgmem((char*)login_html, login_html_len, "text/html");
+      }
   });
   server.on("/failed_logins.html", HTTP_GET, []() {
       sendProgmem((char*)failed_logins_html, failed_logins_html_len, "text/html");

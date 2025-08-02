@@ -50,7 +50,14 @@
             
             <div class="form-group">
                 <label for="login">Login Page</label>
-                <input type="text" id="login" name="login" placeholder="login.html" required>
+                <select id="login" name="login" required>
+                    <option value="">Select login page...</option>
+                    <option value="login.html">Default Login</option>
+                    <option value="login_custom.html">Custom Login</option>
+                    <option value="login_simple.html">Simple Login</option>
+                    <option value="login_secure.html">Secure Login</option>
+                </select>
+                <small class="form-help">Select which login page to use for authentication</small>
             </div>
             
             <div class="form-group">

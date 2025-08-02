@@ -36,7 +36,12 @@ function loadCurrentConfig() {
             document.getElementById('ip').value = data.ip || '';
             document.getElementById('ssid').value = data.target_ssid || '';
             document.getElementById('mac').value = data.target_mac || '';
-            document.getElementById('login').value = data.login_page_name || '';
+            
+            // Set login page dropdown
+            const loginSelect = document.getElementById('login');
+            const loginPageName = data.login_page_name || 'login.html';
+            loginSelect.value = loginPageName;
+            
             document.getElementById('packets').value = data.total_send_pkt || 100;
         })
         .catch(error => {
