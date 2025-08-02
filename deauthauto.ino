@@ -465,6 +465,51 @@ void handleClearWiFiPasswords() {
   }
 }
 
+void handleScanWiFi() {
+  Serial.println("WiFi scan requested");
+  
+  WiFiMode_t currentMode = WiFi.getMode();
+  if (currentMode != WIFI_AP_STA) {
+    WiFi.mode(WIFI_AP_STA);
+    delay(100);
+  }
+  
+  WiFi.disconnect();
+  delay(100);
+  
+  int n = WiFi.scanNetworks();
+  Serial.println("Found " + String(n) + " networks");
+  
+  DynamicJsonDocument doc(1024);
+  JsonArray networks = doc.createNestedArray("networks");
+  
+  for (int i = 0; i < n; ++i) {
+    JsonObject network = networks.createNestedObject();
+    network["ssid"] = WiFi.SSID(i);
+    network["rssi"] = WiFi.RSSI(i);
+    network["channel"] = WiFi.channel(i);
+    
+    uint8_t* bssid = WiFi.BSSID(i);
+    String mac = "";
+    for (int j = 0; j < 6; j++) {
+      if (j > 0) mac += ":";
+      if (bssid[j] < 0x10) mac += "0";
+      mac += String(bssid[j], HEX);
+    }
+    mac.toUpperCase();
+    network["mac"] = mac;
+  }
+  
+  if (currentMode != WIFI_AP_STA) {
+    WiFi.mode(currentMode);
+    delay(100);
+  }
+  
+  String jsonString;
+  serializeJson(doc, jsonString);
+  server.send(200, "application/json", jsonString);
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Deauth Auto Starting...");
@@ -475,31 +520,12 @@ void setup() {
     return;
   }
   
-  // Check if settings.json exists and has content
-  if (SPIFFS.exists("/settings.json")) {
-    File file = SPIFFS.open("/settings.json", "r");
-    if (file) {
-      String content = file.readString();
-      file.close();
-      Serial.println("settings.json content: " + content);
-    }
-  } else {
-    Serial.println("settings.json does not exist, will create default");
-  }
-  
   // Load configuration
   if (!loadConfig()) {
-    Serial.println("Using default configuration");
+    Serial.println("Using default config");
   } else {
-    Serial.println("Configuration loaded successfully from settings.json");
+    Serial.println("Config loaded");
   }
-  
-  // Verify configuration is loaded
-  Serial.println("=== Final Configuration Check ===");
-  Serial.println("Username: '" + config.username + "'");
-  Serial.println("Password: '" + config.password + "'");
-  Serial.println("Target SSID: '" + config.targetSSID + "'");
-  Serial.println("================================");
   
   // Parse IP address from config
   IPAddress local_IP, gateway, subnet;
@@ -566,6 +592,7 @@ void setup() {
   server.on("/save-wifi-password", HTTP_POST, handleSaveWiFiPassword);
   server.on("/wifi-passwords", HTTP_GET, handleGetWiFiPasswords);
   server.on("/clear-wifi-passwords", HTTP_POST, handleClearWiFiPasswords);
+  server.on("/scan-wifi", HTTP_GET, handleScanWiFi);
   server.begin();
   
   Serial.println("Web server started");

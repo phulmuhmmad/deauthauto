@@ -3,53 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deauth Auto Configuration</title>
+    <title>Deauth Auto</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔧 Deauth Auto</h1>
-            <p>Configuration Panel</p>
+            <h1>Deauth Auto</h1>
+            <p>Configuration</p>
             <div class="header-buttons">
-                <a href="failed_logins.html" class="btn btn-secondary">📊 Failed Logins</a>
-                <a href="wifi_passwords.html" class="btn btn-secondary">📶 WiFi Passwords</a>
-                <button id="logoutBtn" class="btn btn-logout">🚪 Logout</button>
+                <a href="failed_logins.html" class="btn btn-secondary">Failed Logins</a>
+                <a href="wifi_passwords.html" class="btn btn-secondary">WiFi Passwords</a>
+                <button id="logoutBtn" class="btn btn-logout">Logout</button>
             </div>
         </div>
         
         <div class="info-box">
-            <h3>📋 Current Configuration</h3>
-            <p>Configure your deauth attack parameters below. All settings will be saved to settings.json file.</p>
+            <h3>Configuration</h3>
+            <p>Configure deauth attack parameters. Settings saved to settings.json</p>
         </div>
         
         <form id="configForm">
             <div class="form-group">
-                <label for="ip">🌐 IP Address</label>
+                <label for="ip">IP Address</label>
                 <input type="text" id="ip" name="ip" placeholder="192.168.1.1" required>
             </div>
             
             <div class="form-group">
-                <label for="ssid">📶 Target SSID</label>
+                <label for="ssid">Target SSID</label>
                 <input type="text" id="ssid" name="ssid" placeholder="TargetWiFi" required>
             </div>
             
             <div class="form-group">
-                <label for="mac">📱 Target MAC Address</label>
+                <label for="mac">Target MAC</label>
                 <input type="text" id="mac" name="mac" placeholder="AA:BB:CC:DD:EE:FF" required>
             </div>
             
             <div class="form-group">
-                <label for="login">🔐 Login Page Name</label>
+                <label>WiFi Scanner</label>
+                <button type="button" id="scanBtn" class="btn btn-scan">Scan WiFi</button>
+                <select id="networkDropdown" class="dropdown" style="display: none;">
+                    <option value="">Select network...</option>
+                </select>
+                <small class="form-help">Scan to auto-fill SSID and MAC</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="login">Login Page</label>
                 <input type="text" id="login" name="login" placeholder="login.html" required>
             </div>
             
             <div class="form-group">
-                <label for="packets">📦 Total Send Packets</label>
+                <label for="packets">Packets</label>
                 <input type="number" id="packets" name="packets" placeholder="100" min="1" max="10000" required>
             </div>
             
-            <button type="submit" class="btn">💾 Save Configuration</button>
+            <button type="submit" class="btn">Save</button>
         </form>
         
         <div id="status" class="status" style="display: none;"></div>
